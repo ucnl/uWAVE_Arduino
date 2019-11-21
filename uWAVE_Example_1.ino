@@ -1,3 +1,33 @@
+/* 
+ *   Necessary hardware:
+ *      - Arduino UNO board
+ *      - uWAVE underwater acoustic modem (2 is better)
+ *      
+ *   Connect uWAVE's TX wire to Arduino's PIN 2
+ *   Connect uWAVE's RX wire to Arduino's PIN 3
+ *   Connect uWAVE's CMD wire to Arduino's PIN 4
+ *   Connect uWAVE's GND wire to any Arduino's GND PIN
+ *   Connect uWAVE's VCC wire to Arduino's 5V PIN
+ *   
+ *   Connect Arduino board to a PC with USB cable
+ *   
+ *   If you have another uWAVE modem, turn it on and make sure its tx and rx channels IDs set to 0
+ *   
+ *   Open Arduino IDE
+ *   Open this scketch in the IDE
+ *   Open Port Monitor in Main menu -> Tools -> Port monitor
+ *   
+ *   Program your board
+ *   
+ *   This sketch will put your uWAVE in cmd mode first by pulling PIN 4 to HIGH
+ *   After that, it will:
+ *   - query for uWAVE's device info
+ *   - update modem's settings
+ *   - update modem's ambient data settings, to make modem send ambient data after any modem's output
+ *   - sequentaly send all remote requests from RC_PING to RC_USR_CMD_008
+ *   
+*/
+
 
 #include <SoftwareSerial.h>
 
@@ -69,7 +99,7 @@ bool uWAVE_out_packet_ready = false;
 #define IC_D2H_AMB_DTA          '7'        // $PUWV7,prs_mBar,temp_C,dpt_m,batVoltage_V
 
 #define IC_H2D_DINFO_GET        '?'        // $PUWV?,reserved
-#define IC_D2H_DINFO            '!'        // $PUWV!,serialNumber,sys_moniker,sys_version,core_moniker [release],core_version,acBaudrate,rxChID,txChID,isCmdMode
+#define IC_D2H_DINFO            '!'        // $PUWV!,serialNumber,sys_moniker,sys_version,core_moniker [release],core_version,acBaudrate,rxChID,txChID,totalCh,salinityPSU,isPTS,isCmdMode
 
 #define IC_D2H_UNKNOWN          '-'
 
