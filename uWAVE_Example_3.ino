@@ -24,16 +24,17 @@
  *  $PVLBL,48.123456,44.123456,1.25,5.1,2,28.45,0.0123,24.6*6D<CR><LF>
  * 
  * 
+ * 
  *  uWAVE modem wiring:
  *    uWAVE TX wire -> pin 3
  *    uWAVE RX wire -> pin 2
  *    uWAVE CMD wire -> pin 4
  *    
  *  GNSS wiring:
- *    GNSS TX wire -> pin 0 (should be disconnectable to program Arduino board)
+ *    GNSS TX wire -> pin 0
  *    
  *  RF module wiring:
- *    RF module RX wire -> pin 1 (should be disconnectable to program Arduino board)
+ *    RF module RX wire -> pin 1 
  * 
  */
 
@@ -670,6 +671,7 @@ void uWAVE_RC_RESPONSE_Parse(const byte* buffer, byte size)
   target_pTime = pTime;
   target_DataID = rcCmdID;
   target_DataVal = value;
+  target_msr = msr;
 
   uWAVE_response_received = true;
 }
@@ -952,7 +954,7 @@ void PVLBL_Write(float ownLat, float ownLon, float ownDpt, float ownBatV, RC_COD
   Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
   
   if (targetDataVal != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, targetDataVal, 1, 3);    
+    Str_WriteFloat(out_packet, &out_packet_idx, targetDataVal, 3, 0);    
   Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
 
   if (pTime != UNDEFINED_FLOAT_VAL)
