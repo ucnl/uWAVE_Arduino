@@ -47,7 +47,7 @@
 
 SoftwareSerial uWAVEPort(SOFTWARE_RX_PIN, SOFTWARE_TX_PIN);
 
-#define UWAVE_MAX_IN_PACKET_SIZE  (255)
+#define UWAVE_MAX_IN_PACKET_SIZE  (128)
 #define UWAVE_MAX_OUT_PACKET_SIZE (64)
 #define UWAVE_TIMEOUT_MS          (2000)
 #define UWAVE_REMOTE_TIMEOUT_MS   (5000)
@@ -56,7 +56,6 @@ SoftwareSerial uWAVEPort(SOFTWARE_RX_PIN, SOFTWARE_TX_PIN);
 #define MAX_OUT_PACKET_SIZE       (64)
 #define GNSS_FIX_OBSOLETE_MS      (2000)
 
-unsigned long uWAVE_request_time = 0;
 unsigned long uWAVE_time = 0;
 unsigned long uWAVE_rtime = 0;
 bool uWAVE_is_cmd_mode = false;
@@ -99,6 +98,10 @@ byte out_packet_ready = false;
 #define NMEA_DATA_NOT_VALID 'V'
 #define NMEA_SOUTH_SIGN 'S'
 #define NMEA_WEST_SIGN 'W'
+
+
+
+#define VLBL_PREFIX             "PVLBL\0"
 
 // UWV Proprietary sentences
 #define UWV_PREFIX_LEN          (4)
@@ -147,15 +150,18 @@ byte requestIDIdx = 0;
 
 float ss_lat = UNDEFINED_FLOAT_VAL;
 float ss_lon = UNDEFINED_FLOAT_VAL;
-float ss_second;
-byte ss_hour, ss_minute, ss_date, ss_month;
-int ss_year;
+//float ss_second = UNDEFINED_FLOAT_VAL;
+//byte ss_hour, ss_minute, ss_date, ss_month;
+//int ss_year;
 unsigned long GNSS_fix_time = 0;
 
 RC_CODES_Enum target_DataID = RC_INVALID;
 float target_DataVal = UNDEFINED_FLOAT_VAL;
 float target_pTime = UNDEFINED_FLOAT_VAL;
 float target_msr = UNDEFINED_FLOAT_VAL;
+
+unsigned long cTime;
+byte newByte;
 
 
 
@@ -172,7 +178,7 @@ void fill_bytes(byte* buffer, byte size)
 // ******************************************  Readers
 float Str_ParseFloat(const byte* buffer, byte stIdx, byte ndIdx)
 {
-  int i, dotIdx = ndIdx - 1;
+  int i, dotIdx = ndIdx + 1;
   float sign = 1.0f, fract = 0.0f;
 
   if (buffer[stIdx] == '-')
@@ -280,9 +286,10 @@ void Str_WriteHexByte(byte* buffer, byte* srcIdx, byte c)
   (*srcIdx)++;
 }
 
-void Str_WriteIntDec(byte* buffer, byte* srcIdx, int src, byte zPad)
+void Str_WriteIntDec(byte* buffer, byte* srcIdx, long src, int zPad)
 {
-  int x = src, len = 0, i;
+  long x = src;
+  int len = 0, i;
 
   do { x /= 10; len++; } while (x >= 1);
 
@@ -305,33 +312,35 @@ void Str_WriteIntDec(byte* buffer, byte* srcIdx, int src, byte zPad)
   } while (--i > 0);
 }
 
-void Str_WriteFloat(byte* buffer, byte* srcIdx, float f, byte dPlaces, byte zPad)
+void Str_WriteFloat(byte* buffer, byte* srcIdx, float f, int dPlaces, int zPad)
 {
   float ff = f;
+  long dec, frac, mult = 1;
+  int i;
 
   if (ff < 0)
   {
-    Str_WriteByte(buffer, srcIdx, '-');
+    buffer[*srcIdx] = '-';
+    (*srcIdx)++;    
     ff = -f;
   }
 
-  int dec = (int)ff, mult = 1, i;
+  dec = (long)ff;
   for (i = 0; i < dPlaces; i++) mult *= 10;
-  int frac = (int)((ff - dec) * (float)mult);
+  frac = (long)((ff - dec) * (float)mult);
 
   Str_WriteIntDec(buffer, srcIdx, dec, zPad);
-  Str_WriteByte(buffer, srcIdx, '.');
+  buffer[*srcIdx] = '.';
+  (*srcIdx)++; 
   Str_WriteIntDec(buffer, srcIdx, frac, dPlaces);
 }
 
-void Str_WriteString(byte* buffer, byte* srcIdx, byte* src)
+void Str_WriteString(byte* buffer, byte* srcIdx, const byte* src)
 {
-  byte c;
-  c = *src;
-  while (c != '\0') 
+  while (*src != '\0') 
   { 
-    buffer[(*srcIdx)++] = c;
-    c = *++src; 
+    buffer[(*srcIdx)++] = *src;
+    src++;    
   }
 }
 // ******************************************
@@ -482,9 +491,9 @@ void GNSS_RMC_Parse(const byte* buffer, byte size)
   byte lastDIdx = 0;
   byte stIdx = 0, ndIdx = 0, pIdx = 0;
 
-  byte hour, minute, year, month, date;
-  float second;
-  float lat, lon, latSign, lonSign;
+  //byte hour, minute, year, month, date;
+  //float second;
+  float lat, lon, latSign = 1, lonSign = 1;
 
   bool result = true;
   bool isNotLastParam = true;
@@ -498,12 +507,12 @@ void GNSS_RMC_Parse(const byte* buffer, byte size)
     {      
       switch (pIdx)
       {
-        case 1:    
-          hour = CC2B(buffer[stIdx], buffer[stIdx + 1]);
-          minute = CC2B(buffer[stIdx + 2], buffer[stIdx + 3]);
-          second = Str_ParseFloat(buffer, stIdx + 4, ndIdx);
-          result = (hour >= 0) && (hour <= 23) && (minute >= 0) && (minute <= 59) && (second >= 0) && (second < 60);
-          break;
+        //case 1:    
+        //  hour = CC2B(buffer[stIdx], buffer[stIdx + 1]);
+        //  minute = CC2B(buffer[stIdx + 2], buffer[stIdx + 3]);
+        //  second = Str_ParseFloat(buffer, stIdx + 4, ndIdx);
+        //  result = (hour >= 0) && (hour <= 23) && (minute >= 0) && (minute <= 59) && (second >= 0) && (second < 60);
+        //  break;
         case 2:
           result = (buffer[stIdx] != NMEA_DATA_NOT_VALID);          
           break;
@@ -521,12 +530,12 @@ void GNSS_RMC_Parse(const byte* buffer, byte size)
             if (buffer[stIdx] == NMEA_WEST_SIGN) lonSign = -1.0f;
             else lonSign = 1.0f;           
             break;
-        case 9:
-            date = CC2B(buffer[stIdx], buffer[stIdx + 1]);
-            month = CC2B(buffer[stIdx + 2], buffer[stIdx + 3]);
-            year = CC2B(buffer[stIdx + 4], buffer[stIdx + 5]);
-            result = (date > 0) && (date <= 31) && (month > 0) && (month <= 12) && (year >= 00) && (year <=99);         
-            break;
+        //case 9:
+        //    date = CC2B(buffer[stIdx], buffer[stIdx + 1]);
+        //    month = CC2B(buffer[stIdx + 2], buffer[stIdx + 3]);
+        //    year = CC2B(buffer[stIdx + 4], buffer[stIdx + 5]);
+        //    result = (date > 0) && (date <= 31) && (month > 0) && (month <= 12) && (year >= 00) && (year <=99);         
+        //    break;
         case 12:        
             result = (buffer[stIdx] != NMEA_DATA_NOT_VALID);           
             break;      
@@ -543,16 +552,15 @@ void GNSS_RMC_Parse(const byte* buffer, byte size)
   {
     lat *= latSign;
     lon *= lonSign;
-
     ss_lat = lat;
     ss_lon = lon;
-    ss_year = year;
-    ss_month = month;
-    ss_date = date;
-    ss_hour = hour;
-    ss_minute = minute;
-    ss_second = second;
-    GNSS_fix_time = millis();
+    //ss_year = year;
+    //ss_month = month;
+    //ss_date = date;
+    //ss_hour = hour;
+    //ss_minute = minute;
+    //ss_second = second;
+    GNSS_fix_time = millis();   
   }  
 }
 // ******************************************
@@ -666,8 +674,7 @@ void uWAVE_RC_RESPONSE_Parse(const byte* buffer, byte size)
   } while (result); 
 
   uWAVE_waiting_for_remote = false;
-  uWAVE_request_time = millis();
-
+  
   target_pTime = pTime;
   target_DataID = rcCmdID;
   target_DataVal = value;
@@ -711,8 +718,7 @@ void uWAVE_RC_TIMEOUT_Parse(const byte* buffer, byte size)
   target_msr = UNDEFINED_FLOAT_VAL;
 
   uWAVE_response_received = true;
-  uWAVE_waiting_for_remote = false;
-  uWAVE_request_time = 0;
+  uWAVE_waiting_for_remote = false;  
 }
 
 void uWAVE_AMB_DTA_Parse(const byte* buffer, byte size)
@@ -865,9 +871,30 @@ void uWAVE_Init()
 
 void uWAVE_Input_Process()
 {
+  
+}
+
+// ******************************************************************
+
+
+
+// ******************************************************************
+
+void setup()
+{
+  Serial.begin(9600);
+  while (!Serial) { }
+  uWAVE_Init();
+}
+
+void loop() 
+{
+  cTime = millis();
+  
+  // Process incoming messages from the local uWAVE modem
   if (uWAVEPort.available())
   {
-    byte newByte = uWAVEPort.read();
+    newByte = uWAVEPort.read();
     NMEA_ProcessByte(uWAVE_in_packet, UWAVE_MAX_IN_PACKET_SIZE, &uWAVE_in_packet_ready, &uWAVE_in_packet_started, &uWAVE_in_packet_idx, newByte);    
   }
 
@@ -899,13 +926,11 @@ void uWAVE_Input_Process()
     }
     uWAVE_in_packet_ready = false;
   }
-}
 
-void GNSS_Input_Process()
-{
+  // Process incoming messages from the GNSS receiver
   if (Serial.available())
   {
-    byte newByte = Serial.read();
+    newByte = Serial.read();
     NMEA_ProcessByte(GNSS_in_packet, GNSS_MAX_IN_PACKET_SIZE, &GNSS_in_packet_ready, &GNSS_in_packet_started, &GNSS_in_packet_idx, newByte);    
   }
 
@@ -918,79 +943,11 @@ void GNSS_Input_Process()
           (GNSS_in_packet[4] == 'M') &&
           (GNSS_in_packet[5] == 'C'))
       {  
-        GNSS_RMC_Parse(GNSS_in_packet, GNSS_in_packet_idx);
+        GNSS_RMC_Parse(GNSS_in_packet, GNSS_in_packet_idx);        
       }
     }
     GNSS_in_packet_ready = false;
   }
-}
-
-// ******************************************************************
-
-void PVLBL_Write(float ownLat, float ownLon, float ownDpt, float ownBatV, RC_CODES_Enum targetDataID, float targetDataVal, float pTime, float msr)
-{
-  out_packet_idx = 0;
-  fill_bytes(out_packet, MAX_OUT_PACKET_SIZE);
-  Str_WriteString(out_packet, &out_packet_idx, (byte*)"$PVLBL,\0");
-
-  if (ownLat != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, ownLat, 6, 0);  
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-
-  if (ownLon != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, ownLon, 6, 0);
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-
-  if (ownDpt != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, ownDpt, 2, 0);
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-
-  if (ownBatV != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, ownBatV, 1, 0);
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-
-  if (targetDataID != RC_INVALID)
-    Str_WriteIntDec(out_packet, &out_packet_idx, targetDataID, 0);    
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
-  if (targetDataVal != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, targetDataVal, 3, 0);    
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-
-  if (pTime != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, pTime, 4, 0);  
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-
-  if (msr != UNDEFINED_FLOAT_VAL)
-    Str_WriteFloat(out_packet, &out_packet_idx, msr, 4, 0);  
-  Str_WriteByte(out_packet, &out_packet_idx, NMEA_CHK_SEP);
-
-  Str_WriteHexByte(out_packet, &out_packet_idx, 0);
-  Str_WriteString(out_packet, &out_packet_idx, (byte*)"\r\n");
-  NMEA_CheckSum_Update(out_packet, out_packet_idx);
-  
-  out_packet_ready = true;
-}
-
-
-
-
-// ******************************************************************
-
-void setup()
-{
-  Serial.begin(9600);
-  while (!Serial) { }
-  uWAVE_Init();
-}
-
-void loop() 
-{
-  // Process incoming messages from the local uWAVE modem
-  uWAVE_Input_Process();
-
-  // Process incoming messages from the GNSS receiver
-  GNSS_Input_Process();
 
   // If packet to be sent to the local uWAVE modem is ready, send it 
   if (uWAVE_out_packet_ready)
@@ -1017,29 +974,71 @@ void loop()
       uWAVE_AMB_DTA_CFG_Write(false, 1, false, false, true, true);
     }
     else if ((!uWAVE_waiting_for_remote) && 
-             (millis() < GNSS_fix_time + GNSS_FIX_OBSOLETE_MS) &&
-             (millis() >= uWAVE_request_time + UWAVE_REQUEST_PERIOD_MS))
+             (cTime < GNSS_fix_time + GNSS_FIX_OBSOLETE_MS) &&
+             (cTime >= uWAVE_rtime + UWAVE_REQUEST_PERIOD_MS))
     {      
         uWAVE_RC_REQUEST_Write(0, 0, requestIDs[requestIDIdx]);
         requestIDIdx = (requestIDIdx + 1) % REQUEST_IDS_NUMBER;
     }
   }
 
-  if (uWAVE_is_busy && (millis() >= uWAVE_time + UWAVE_TIMEOUT_MS))
+  if (uWAVE_is_busy && (cTime >= uWAVE_time + UWAVE_TIMEOUT_MS))
   {    
     uWAVE_is_busy = false;    
     uWAVE_waiting_for_remote = false;
   }
 
-  if (uWAVE_waiting_for_remote && (millis() >= uWAVE_rtime + UWAVE_REMOTE_TIMEOUT_MS))
+  if (uWAVE_waiting_for_remote && (cTime >= uWAVE_rtime + UWAVE_REMOTE_TIMEOUT_MS))
   {
     uWAVE_waiting_for_remote = false;
-    uWAVE_request_time = 0;
+    //uWAVE_request_time = 0;
   }
 
   if (uWAVE_response_received)
   {
-    PVLBL_Write(ss_lat, ss_lon, uWAVE_amb_dpt_m, uWAVE_amb_batV, target_DataID, target_DataVal, target_pTime, target_msr);    
+    out_packet_idx = 0;
+    fill_bytes(out_packet, MAX_OUT_PACKET_SIZE);
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_SNT_STR);
+    Str_WriteString(out_packet, &out_packet_idx, (const byte*)VLBL_PREFIX);
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+  
+    if (ss_lat != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, ss_lat, 6, 0);  
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+  
+    if (ss_lon != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, ss_lon, 6, 0);
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+     
+    if (uWAVE_amb_dpt_m != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, uWAVE_amb_dpt_m, 2, 0);
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+  
+    if (uWAVE_amb_batV != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, uWAVE_amb_batV, 1, 0);
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+  
+    if (target_DataID != RC_INVALID)
+      Str_WriteIntDec(out_packet, &out_packet_idx, target_DataID, 0);    
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+    
+    if (target_DataVal != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, target_DataVal, 3, 0);    
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+  
+    if (target_pTime != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, target_pTime, 4, 0);  
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
+  
+    if (target_msr != UNDEFINED_FLOAT_VAL)
+      Str_WriteFloat(out_packet, &out_packet_idx, target_msr, 1, 0);  
+    Str_WriteByte(out_packet, &out_packet_idx, NMEA_CHK_SEP);
+  
+    Str_WriteHexByte(out_packet, &out_packet_idx, 0);
+    Str_WriteString(out_packet, &out_packet_idx, (const byte*)"\r\n");
+    NMEA_CheckSum_Update(out_packet, out_packet_idx);
+    
+    out_packet_ready = true;    
     uWAVE_response_received = false;
   }
 }
