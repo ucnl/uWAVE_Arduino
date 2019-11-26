@@ -1,42 +1,42 @@
 
 /*
- *  This sketch parses $G*RMC sentence from a GNSS receiver,
- *  if GNSS position is defined, it requests a remote uWAVE modem by local uWAVE modem every 10 seconds
- *  and after receiving remote response (or remote timeout) send following message via RF link to the host:
- *  
- *  $PVLBL,ownLat,ownLon,ownDepth,ownBatV,targetDataID,targetDataValue,propagationTime,MSR
- *  
- *  where
- *    - ownLat - own latitude (from GNSS) in degrees as a signed real value 
- *    - ownLon - own longitude (from GNSS) in degrees as a signed real value 
- *    - ownDepth - local uWAVE's depth in meters
- *    - ownBatV - local uWAVE's supply voltage in volts
- *    - targetDataID, which can be one of the following values:
- *       2 - Depth
- *       3 - Temperature
- *       4 - Supply voltage
- *    - targetDataValue - the actual value of the specified parameter
- *    - propagationTime between the local and the remote uWAVEs, in seconds
- *    - MSR - Main lobe to side peak ratio in dB
- *    
- *  Example:
- *  
- *  $PVLBL,48.123456,44.123456,1.25,5.1,2,28.45,0.0123,24.6*6D<CR><LF>
- * 
- * 
- * 
- *  uWAVE modem wiring:
- *    uWAVE TX wire -> pin 3
- *    uWAVE RX wire -> pin 2
- *    uWAVE CMD wire -> pin 4
- *    
- *  GNSS wiring:
- *    GNSS TX wire -> pin 0
- *    
- *  RF module wiring:
- *    RF module RX wire -> pin 1 
- * 
- */
+    This sketch parses $G*RMC sentence from a GNSS receiver,
+    if GNSS position is defined, it requests a remote uWAVE modem by local uWAVE modem every 10 seconds
+    and after receiving remote response (or remote timeout) send following message via RF link to the host:
+
+    $PVLBL,ownLat,ownLon,ownDepth,ownBatV,targetDataID,targetDataValue,propagationTime,MSR
+
+    where
+      - ownLat - own latitude (from GNSS) in degrees as a signed real value
+      - ownLon - own longitude (from GNSS) in degrees as a signed real value
+      - ownDepth - local uWAVE's depth in meters
+      - ownBatV - local uWAVE's supply voltage in volts
+      - targetDataID, which can be one of the following values:
+         2 - Depth
+         3 - Temperature
+         4 - Supply voltage
+      - targetDataValue - the actual value of the specified parameter
+      - propagationTime between the local and the remote uWAVEs, in seconds
+      - MSR - Main lobe to side peak ratio in dB
+
+    Example:
+
+    $PVLBL,48.123456,44.123456,1.25,5.1,2,28.45,0.0123,24.6*6D<CR><LF>
+
+
+
+    uWAVE modem wiring:
+      uWAVE TX wire -> pin 3
+      uWAVE RX wire -> pin 2
+      uWAVE CMD wire -> pin 4
+
+    GNSS wiring:
+      GNSS TX wire -> pin 0
+
+    RF module wiring:
+      RF module RX wire -> pin 1
+
+*/
 
 #include <SoftwareSerial.h>
 
@@ -167,9 +167,9 @@ byte newByte;
 
 // ****************************************** Utils
 void fill_bytes(byte* buffer, byte size)
-{  
+{
   for (byte i = 0; i < size; i++)
-     buffer[i] = 0;
+    buffer[i] = 0;
 }
 // ******************************************
 
@@ -182,14 +182,14 @@ float Str_ParseFloat(const byte* buffer, byte stIdx, byte ndIdx)
   float sign = 1.0f, fract = 0.0f;
 
   if (buffer[stIdx] == '-')
-  { 
+  {
     sign = -1.0f;
     stIdx++;
   }
 
-  for (i = stIdx; i <= ndIdx; i++) 
-  { 
-    if (buffer[i] == '.') 
+  for (i = stIdx; i <= ndIdx; i++)
+  {
+    if (buffer[i] == '.')
     {
       dotIdx = i;
     }
@@ -222,7 +222,7 @@ int Str_ParseIntDec(const byte* buffer, byte stIdx, byte ndIdx)
   int sign = 1;
 
   if (buffer[stIdx] == '-')
-  { 
+  {
     sign = -1;
     stIdx++;
   }
@@ -243,20 +243,20 @@ byte Str_ParseHexByte(const byte* buffer, byte stIdx)
 {
   byte c1 = buffer[stIdx];
   byte c2 = buffer[stIdx + 1];
-  if (c1 >= 0x41) 
-  { 
-    c1 -= 'A'; 
-    c1 += 10; 
+  if (c1 >= 0x41)
+  {
+    c1 -= 'A';
+    c1 += 10;
   }
-  else 
+  else
   {
     c1 -= '0';
   }
-  if (c2 >= 0x41) 
-  { 
-    c2 -= 'A'; 
-    c2 += 10; 
-  } 
+  if (c2 >= 0x41)
+  {
+    c2 -= 'A';
+    c2 += 10;
+  }
   else
   {
     c2 -= '0';
@@ -291,7 +291,10 @@ void Str_WriteIntDec(byte* buffer, byte* srcIdx, long src, int zPad)
   long x = src;
   int len = 0, i;
 
-  do { x /= 10; len++; } while (x >= 1);
+  do {
+    x /= 10;
+    len++;
+  } while (x >= 1);
 
   x = 1;
   for (i = 1; i < len; i++) x *= 10;
@@ -321,7 +324,7 @@ void Str_WriteFloat(byte* buffer, byte* srcIdx, float f, int dPlaces, int zPad)
   if (ff < 0)
   {
     buffer[*srcIdx] = '-';
-    (*srcIdx)++;    
+    (*srcIdx)++;
     ff = -f;
   }
 
@@ -331,16 +334,16 @@ void Str_WriteFloat(byte* buffer, byte* srcIdx, float f, int dPlaces, int zPad)
 
   Str_WriteIntDec(buffer, srcIdx, dec, zPad);
   buffer[*srcIdx] = '.';
-  (*srcIdx)++; 
+  (*srcIdx)++;
   Str_WriteIntDec(buffer, srcIdx, frac, dPlaces);
 }
 
 void Str_WriteString(byte* buffer, byte* srcIdx, const byte* src)
 {
-  while (*src != '\0') 
-  { 
+  while (*src != '\0')
+  {
     buffer[(*srcIdx)++] = *src;
-    src++;    
+    src++;
   }
 }
 // ******************************************
@@ -357,18 +360,18 @@ bool NMEA_Checksum_Check(const byte* buffer, byte size)
 
   while ((i < size) && (buffer[i] != NMEA_CHK_SEP))
   {
-    if (buffer[i] == NMEA_SNT_STR) 
+    if (buffer[i] == NMEA_SNT_STR)
     {
       acc = 0;
     }
     else
-    { 
+    {
       acc ^= buffer[i];
     }
     i++;
   }
 
-  if (buffer[i] == NMEA_CHK_SEP) 
+  if (buffer[i] == NMEA_CHK_SEP)
   {
     result = (acc == Str_ParseHexByte(buffer, i + 1));
   }
@@ -399,10 +402,10 @@ void NMEA_CheckSum_Update(byte buffer[], byte size)
       }
       else
       {
-        b1 += '0';      
+        b1 += '0';
       }
       b2 = acc % 16;
-      
+
       if (b2 > 9)
       {
         b2 += ('A' - 10);
@@ -411,7 +414,7 @@ void NMEA_CheckSum_Update(byte buffer[], byte size)
       {
         b2 += '0';
       }
-      
+
       buffer[i + 1] = b1;
       buffer[i + 2] = b2;
     }
@@ -445,13 +448,13 @@ void NMEA_ProcessByte(byte* buffer, byte size, bool* isReady, bool* isStarted, b
         else
         {
           buffer[(*idx)++] = newByte;
-          if (*idx >= size) 
+          if (*idx >= size)
           {
             *isStarted = false;
           }
         }
       }
-    }      
+    }
   }
 }
 
@@ -463,12 +466,12 @@ bool NMEA_GetNextParameter(const byte* buffer, byte fromIdx, byte size, byte* st
 
   while ((i <= size) && (*ndIdx == *stIdx))
   {
-    if ((buffer[i] == NMEA_PAR_SEP) || 
+    if ((buffer[i] == NMEA_PAR_SEP) ||
         (buffer[i] == NMEA_CHK_SEP) ||
         (buffer[i] == '\r') ||
         (i == size))
     {
-      *ndIdx = i;           
+      *ndIdx = i;
     }
     else
     {
@@ -497,48 +500,70 @@ void GNSS_RMC_Parse(const byte* buffer, byte size)
 
   bool result = true;
   bool isNotLastParam = true;
- 
+
   do
-  {        
+  {
     isNotLastParam = NMEA_GetNextParameter(buffer, lastDIdx, size, &stIdx, &ndIdx);
     stIdx++;
     ndIdx--;
-    if (stIdx <= ndIdx)
-    {      
+    //if (stIdx <= ndIdx)
+    {
       switch (pIdx)
       {
-        //case 1:    
+        //case 1:
         //  hour = CC2B(buffer[stIdx], buffer[stIdx + 1]);
         //  minute = CC2B(buffer[stIdx + 2], buffer[stIdx + 3]);
         //  second = Str_ParseFloat(buffer, stIdx + 4, ndIdx);
         //  result = (hour >= 0) && (hour <= 23) && (minute >= 0) && (minute <= 59) && (second >= 0) && (second < 60);
         //  break;
         case 2:
-          result = (buffer[stIdx] != NMEA_DATA_NOT_VALID);          
+          if (stIdx <= ndIdx)
+            result = (buffer[stIdx] != NMEA_DATA_NOT_VALID);
+          else
+            result = false;
           break;
-        case 3:          
-          lat = ((float)CC2B(buffer[stIdx], buffer[stIdx + 1])) + Str_ParseFloat(buffer, stIdx + 2, ndIdx) / 60.0f;         
+        case 3:
+          if (stIdx <= ndIdx)
+            lat = ((float)CC2B(buffer[stIdx], buffer[stIdx + 1])) + Str_ParseFloat(buffer, stIdx + 2, ndIdx) / 60.0f;
+          else
+            result = false;
           break;
         case 4:
-          if (buffer[stIdx] == NMEA_SOUTH_SIGN) latSign = -1.0f;            
-          else latSign = 1.0f;                      
+          if (stIdx <= ndIdx)
+          {
+            if (buffer[stIdx] == NMEA_SOUTH_SIGN) latSign = -1.0f;
+            else latSign = 1.0f;
+          }
+          else
+            result = false;
           break;
-        case 5:          
-            lon = ((float)CCC2B(buffer[stIdx], buffer[stIdx + 1], buffer[stIdx + 2])) + Str_ParseFloat(buffer, stIdx + 3, ndIdx) / 60.0f;           
-            break;
+        case 5:
+          if (stIdx <= ndIdx)
+            lon = ((float)CCC2B(buffer[stIdx], buffer[stIdx + 1], buffer[stIdx + 2])) + Str_ParseFloat(buffer, stIdx + 3, ndIdx) / 60.0f;
+          else
+            result = false;
+          break;
         case 6:
+          if (stIdx <= ndIdx)
+          {
             if (buffer[stIdx] == NMEA_WEST_SIGN) lonSign = -1.0f;
-            else lonSign = 1.0f;           
-            break;
+            else lonSign = 1.0f;
+          }
+          else
+            result = false;
+          break;
         //case 9:
         //    date = CC2B(buffer[stIdx], buffer[stIdx + 1]);
         //    month = CC2B(buffer[stIdx + 2], buffer[stIdx + 3]);
         //    year = CC2B(buffer[stIdx + 4], buffer[stIdx + 5]);
-        //    result = (date > 0) && (date <= 31) && (month > 0) && (month <= 12) && (year >= 00) && (year <=99);         
+        //    result = (date > 0) && (date <= 31) && (month > 0) && (month <= 12) && (year >= 00) && (year <=99);
         //    break;
-        case 12:        
-            result = (buffer[stIdx] != NMEA_DATA_NOT_VALID);           
-            break;      
+        case 12:
+          if (stIdx <= ndIdx)
+            result = (buffer[stIdx] != NMEA_DATA_NOT_VALID);
+          else
+            result = false;
+          break;
         default:
           break;
       }
@@ -560,8 +585,8 @@ void GNSS_RMC_Parse(const byte* buffer, byte size)
     //ss_hour = hour;
     //ss_minute = minute;
     //ss_second = second;
-    GNSS_fix_time = millis();   
-  }  
+    GNSS_fix_time = millis();
+  }
 }
 // ******************************************
 
@@ -582,7 +607,7 @@ void uWAVE_ACK_Parse(const byte* buffer, byte size)
 
   byte errCode = 255;
   char sntID = IC_D2H_UNKNOWN;
-  
+
   do
   {
     result = NMEA_GetNextParameter(buffer, lastDIdx, size, &stIdx, &ndIdx);
@@ -600,31 +625,31 @@ void uWAVE_ACK_Parse(const byte* buffer, byte size)
 
     lastDIdx = ndIdx + 1;
     pIdx++;
-  } while (result); 
+  } while (result);
 
   uWAVE_is_busy = false;
 
   if (errCode == 0)
-  {    
+  {
     if (sntID == IC_H2D_RC_REQUEST)
     {
       uWAVE_waiting_for_remote = true;
-      uWAVE_rtime = millis();      
+      uWAVE_rtime = millis();
     }
     else if (sntID == IC_H2D_SETTINGS_WRITE)
     {
-      uWAVE_settings_updated = true;      
+      uWAVE_settings_updated = true;
     }
     else if (sntID == IC_H2D_AMB_DTA_CFG)
     {
-      uWAVE_amb_settings_updated = true;      
+      uWAVE_amb_settings_updated = true;
     }
-  }  
+  }
 }
 
 void uWAVE_RC_RESPONSE_Parse(const byte* buffer, byte size)
 {
- // $PUWV3,txChID,rcCmdID,propTime_seс,msr,[value],[azimuth]
+  // $PUWV3,txChID,rcCmdID,propTime_seс,msr,[value],[azimuth]
   byte lastDIdx = 0;
   byte stIdx = 0, ndIdx = 0, pIdx = 0;
   bool result = false;
@@ -635,7 +660,7 @@ void uWAVE_RC_RESPONSE_Parse(const byte* buffer, byte size)
   float msr = UNDEFINED_FLOAT_VAL;
   float value = UNDEFINED_FLOAT_VAL;
   float azimuth = UNDEFINED_FLOAT_VAL;
-  
+
   do
   {
     result = NMEA_GetNextParameter(buffer, lastDIdx, size, &stIdx, &ndIdx);
@@ -664,17 +689,17 @@ void uWAVE_RC_RESPONSE_Parse(const byte* buffer, byte size)
       case 6:
         if (stIdx <= ndIdx)
         {
-          azimuth = Str_ParseFloat(buffer, stIdx, ndIdx);              
+          azimuth = Str_ParseFloat(buffer, stIdx, ndIdx);
         }
         break;
     }
 
     lastDIdx = ndIdx + 1;
     pIdx++;
-  } while (result); 
+  } while (result);
 
   uWAVE_waiting_for_remote = false;
-  
+
   target_pTime = pTime;
   target_DataID = rcCmdID;
   target_DataVal = value;
@@ -685,14 +710,14 @@ void uWAVE_RC_RESPONSE_Parse(const byte* buffer, byte size)
 
 void uWAVE_RC_TIMEOUT_Parse(const byte* buffer, byte size)
 {
-// $PUWV4,txChID,rcCmdID
+  // $PUWV4,txChID,rcCmdID
   byte lastDIdx = 0;
   byte stIdx = 0, ndIdx = 0, pIdx = 0;
   bool result = false;
 
   byte txChID = 255;
   RC_CODES_Enum rcCmdID = RC_INVALID;
-  
+
   do
   {
     result = NMEA_GetNextParameter(buffer, lastDIdx, size, &stIdx, &ndIdx);
@@ -710,7 +735,7 @@ void uWAVE_RC_TIMEOUT_Parse(const byte* buffer, byte size)
 
     lastDIdx = ndIdx + 1;
     pIdx++;
-  } while (result); 
+  } while (result);
 
   target_DataID = RC_INVALID;
   target_DataVal = UNDEFINED_FLOAT_VAL;
@@ -718,7 +743,7 @@ void uWAVE_RC_TIMEOUT_Parse(const byte* buffer, byte size)
   target_msr = UNDEFINED_FLOAT_VAL;
 
   uWAVE_response_received = true;
-  uWAVE_waiting_for_remote = false;  
+  uWAVE_waiting_for_remote = false;
 }
 
 void uWAVE_AMB_DTA_Parse(const byte* buffer, byte size)
@@ -727,9 +752,9 @@ void uWAVE_AMB_DTA_Parse(const byte* buffer, byte size)
   byte stIdx = 0, ndIdx = 0, pIdx = 0;
   bool result = false;
   float val;
- 
+
   do
-  {        
+  {
     result = NMEA_GetNextParameter(buffer, lastDIdx, size, &stIdx, &ndIdx);
     stIdx++;
     ndIdx--;
@@ -738,7 +763,7 @@ void uWAVE_AMB_DTA_Parse(const byte* buffer, byte size)
       val = Str_ParseFloat(buffer, stIdx, ndIdx);
       switch (pIdx)
       {
-        case 1:    
+        case 1:
           uWAVE_amb_prs_mBar = val;
           break;
         case 2:
@@ -749,7 +774,7 @@ void uWAVE_AMB_DTA_Parse(const byte* buffer, byte size)
           break;
         case 4:
           uWAVE_amb_batV = val;
-          break;     
+          break;
         default:
           break;
       }
@@ -787,7 +812,7 @@ void uWAVE_SETTINGS_WRITE_Write(byte rxID, byte txID, float salinityPSU, bool is
   Str_WriteHexByte(uWAVE_out_packet, &uWAVE_out_packet_idx, 0);
   Str_WriteString(uWAVE_out_packet, &uWAVE_out_packet_idx, (byte*)"\r\n");
   NMEA_CheckSum_Update(uWAVE_out_packet, uWAVE_out_packet_idx);
-  
+
   uWAVE_out_packet_ready = true;
   uWAVE_is_busy = true;
   uWAVE_time = millis();
@@ -810,7 +835,7 @@ void uWAVE_RC_REQUEST_Write(byte txID, byte rxID, RC_CODES_Enum rcCmdID)
   Str_WriteHexByte(uWAVE_out_packet, &uWAVE_out_packet_idx, 0);
   Str_WriteString(uWAVE_out_packet, &uWAVE_out_packet_idx, (byte*)"\r\n");
   NMEA_CheckSum_Update(uWAVE_out_packet, uWAVE_out_packet_idx);
-  
+
   uWAVE_out_packet_ready = true;
   uWAVE_is_busy = true;
   uWAVE_time = millis();
@@ -822,7 +847,7 @@ void uWAVE_AMB_DTA_CFG_Write(bool isWriteInFlash, int periodMs, bool isPrs, bool
   fill_bytes(uWAVE_out_packet, UWAVE_MAX_OUT_PACKET_SIZE);
   Str_WriteByte(uWAVE_out_packet, &uWAVE_out_packet_idx, NMEA_SNT_STR);
   Str_WriteString(uWAVE_out_packet, &uWAVE_out_packet_idx, (byte*)UWV_PREFIX);
-  Str_WriteByte(uWAVE_out_packet, &uWAVE_out_packet_idx, IC_H2D_AMB_DTA_CFG);  
+  Str_WriteByte(uWAVE_out_packet, &uWAVE_out_packet_idx, IC_H2D_AMB_DTA_CFG);
   Str_WriteByte(uWAVE_out_packet, &uWAVE_out_packet_idx, NMEA_PAR_SEP);
   Str_WriteIntDec(uWAVE_out_packet, &uWAVE_out_packet_idx, isWriteInFlash, 0);
   Str_WriteByte(uWAVE_out_packet, &uWAVE_out_packet_idx, NMEA_PAR_SEP);
@@ -839,7 +864,7 @@ void uWAVE_AMB_DTA_CFG_Write(bool isWriteInFlash, int periodMs, bool isPrs, bool
   Str_WriteHexByte(uWAVE_out_packet, &uWAVE_out_packet_idx, 0);
   Str_WriteString(uWAVE_out_packet, &uWAVE_out_packet_idx, (byte*)"\r\n");
   NMEA_CheckSum_Update(uWAVE_out_packet, uWAVE_out_packet_idx);
-  
+
   uWAVE_out_packet_ready = true;
   uWAVE_is_busy = true;
   uWAVE_time = millis();
@@ -871,7 +896,7 @@ void uWAVE_Init()
 
 void uWAVE_Input_Process()
 {
-  
+
 }
 
 // ******************************************************************
@@ -887,42 +912,42 @@ void setup()
   uWAVE_Init();
 }
 
-void loop() 
+void loop()
 {
   cTime = millis();
-  
+
   // Process incoming messages from the local uWAVE modem
   if (uWAVEPort.available())
   {
     newByte = uWAVEPort.read();
-    NMEA_ProcessByte(uWAVE_in_packet, UWAVE_MAX_IN_PACKET_SIZE, &uWAVE_in_packet_ready, &uWAVE_in_packet_started, &uWAVE_in_packet_idx, newByte);    
+    NMEA_ProcessByte(uWAVE_in_packet, UWAVE_MAX_IN_PACKET_SIZE, &uWAVE_in_packet_ready, &uWAVE_in_packet_started, &uWAVE_in_packet_idx, newByte);
   }
 
   if (uWAVE_in_packet_ready)
-  {    
+  {
     if (NMEA_Checksum_Check(uWAVE_in_packet, uWAVE_in_packet_idx))
-    {      
-      if ((uWAVE_in_packet[1] == UWV_PREFIX[0]) && 
-          (uWAVE_in_packet[2] == UWV_PREFIX[1]) && 
+    {
+      if ((uWAVE_in_packet[1] == UWV_PREFIX[0]) &&
+          (uWAVE_in_packet[2] == UWV_PREFIX[1]) &&
           (uWAVE_in_packet[3] == UWV_PREFIX[2]) &&
           (uWAVE_in_packet[4] == UWV_PREFIX[3]))
       {
-         switch (uWAVE_in_packet[5])
-         {
-           case IC_D2H_ACK:             
-             uWAVE_ACK_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);             
-             break;           
-           case IC_D2H_RC_RESPONSE:             
-             uWAVE_RC_RESPONSE_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
-             break;
-           case IC_D2H_RC_TIMEOUT:             
-             uWAVE_RC_TIMEOUT_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
-             break;           
-           case IC_D2H_AMB_DTA:
-             uWAVE_AMB_DTA_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
-             break;           
-         }
-      }      
+        switch (uWAVE_in_packet[5])
+        {
+          case IC_D2H_ACK:
+            uWAVE_ACK_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
+            break;
+          case IC_D2H_RC_RESPONSE:
+            uWAVE_RC_RESPONSE_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
+            break;
+          case IC_D2H_RC_TIMEOUT:
+            uWAVE_RC_TIMEOUT_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
+            break;
+          case IC_D2H_AMB_DTA:
+            uWAVE_AMB_DTA_Parse(uWAVE_in_packet, uWAVE_in_packet_idx);
+            break;
+        }
+      }
     }
     uWAVE_in_packet_ready = false;
   }
@@ -931,27 +956,27 @@ void loop()
   if (Serial.available())
   {
     newByte = Serial.read();
-    NMEA_ProcessByte(GNSS_in_packet, GNSS_MAX_IN_PACKET_SIZE, &GNSS_in_packet_ready, &GNSS_in_packet_started, &GNSS_in_packet_idx, newByte);    
+    NMEA_ProcessByte(GNSS_in_packet, GNSS_MAX_IN_PACKET_SIZE, &GNSS_in_packet_ready, &GNSS_in_packet_started, &GNSS_in_packet_idx, newByte);
   }
 
   if (GNSS_in_packet_ready)
-  {    
+  {
     if (NMEA_Checksum_Check(GNSS_in_packet, GNSS_in_packet_idx))
     {
       // look for '$G*RMC,...'
       if ((GNSS_in_packet[3] == 'R') &&
           (GNSS_in_packet[4] == 'M') &&
           (GNSS_in_packet[5] == 'C'))
-      {  
-        GNSS_RMC_Parse(GNSS_in_packet, GNSS_in_packet_idx);        
+      {
+        GNSS_RMC_Parse(GNSS_in_packet, GNSS_in_packet_idx);
       }
     }
     GNSS_in_packet_ready = false;
   }
 
-  // If packet to be sent to the local uWAVE modem is ready, send it 
+  // If packet to be sent to the local uWAVE modem is ready, send it
   if (uWAVE_out_packet_ready)
-  {    
+  {
     uWAVEPort.write(uWAVE_out_packet, uWAVE_out_packet_idx);
     uWAVE_out_packet_ready = false;
   }
@@ -966,25 +991,30 @@ void loop()
   if (!uWAVE_is_busy && uWAVE_is_cmd_mode)
   {
     if (!uWAVE_settings_updated)
-    {      
+    {
       uWAVE_SETTINGS_WRITE_Write(0, 0, 0.0, false, false);
     }
     else if (!uWAVE_amb_settings_updated)
-    {      
+    {
       uWAVE_AMB_DTA_CFG_Write(false, 1, false, false, true, true);
     }
-    else if ((!uWAVE_waiting_for_remote) && 
+    else if ((!uWAVE_waiting_for_remote) &&
              (cTime < GNSS_fix_time + GNSS_FIX_OBSOLETE_MS) &&
              (cTime >= uWAVE_rtime + UWAVE_REQUEST_PERIOD_MS))
-    {      
-        uWAVE_RC_REQUEST_Write(0, 0, requestIDs[requestIDIdx]);
-        requestIDIdx = (requestIDIdx + 1) % REQUEST_IDS_NUMBER;
+    {
+      uWAVE_RC_REQUEST_Write(0, 0, requestIDs[requestIDIdx]);
+      requestIDIdx = (requestIDIdx + 1) % REQUEST_IDS_NUMBER;
+    }
+    else if (cTime >= GNSS_fix_time + GNSS_FIX_OBSOLETE_MS)
+    {
+      ss_lat = UNDEFINED_FLOAT_VAL;
+      ss_lon = UNDEFINED_FLOAT_VAL;
     }
   }
 
   if (uWAVE_is_busy && (cTime >= uWAVE_time + UWAVE_TIMEOUT_MS))
-  {    
-    uWAVE_is_busy = false;    
+  {
+    uWAVE_is_busy = false;
     uWAVE_waiting_for_remote = false;
   }
 
@@ -1001,44 +1031,44 @@ void loop()
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_SNT_STR);
     Str_WriteString(out_packet, &out_packet_idx, (const byte*)VLBL_PREFIX);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
+
     if (ss_lat != UNDEFINED_FLOAT_VAL)
-      Str_WriteFloat(out_packet, &out_packet_idx, ss_lat, 6, 0);  
+      Str_WriteFloat(out_packet, &out_packet_idx, ss_lat, 6, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
+
     if (ss_lon != UNDEFINED_FLOAT_VAL)
       Str_WriteFloat(out_packet, &out_packet_idx, ss_lon, 6, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-     
+
     if (uWAVE_amb_dpt_m != UNDEFINED_FLOAT_VAL)
       Str_WriteFloat(out_packet, &out_packet_idx, uWAVE_amb_dpt_m, 2, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
+
     if (uWAVE_amb_batV != UNDEFINED_FLOAT_VAL)
       Str_WriteFloat(out_packet, &out_packet_idx, uWAVE_amb_batV, 1, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
+
     if (target_DataID != RC_INVALID)
-      Str_WriteIntDec(out_packet, &out_packet_idx, target_DataID, 0);    
+      Str_WriteIntDec(out_packet, &out_packet_idx, target_DataID, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-    
+
     if (target_DataVal != UNDEFINED_FLOAT_VAL)
-      Str_WriteFloat(out_packet, &out_packet_idx, target_DataVal, 3, 0);    
+      Str_WriteFloat(out_packet, &out_packet_idx, target_DataVal, 3, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
+
     if (target_pTime != UNDEFINED_FLOAT_VAL)
-      Str_WriteFloat(out_packet, &out_packet_idx, target_pTime, 4, 0);  
+      Str_WriteFloat(out_packet, &out_packet_idx, target_pTime, 4, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_PAR_SEP);
-  
+
     if (target_msr != UNDEFINED_FLOAT_VAL)
-      Str_WriteFloat(out_packet, &out_packet_idx, target_msr, 1, 0);  
+      Str_WriteFloat(out_packet, &out_packet_idx, target_msr, 1, 0);
     Str_WriteByte(out_packet, &out_packet_idx, NMEA_CHK_SEP);
-  
+
     Str_WriteHexByte(out_packet, &out_packet_idx, 0);
     Str_WriteString(out_packet, &out_packet_idx, (const byte*)"\r\n");
     NMEA_CheckSum_Update(out_packet, out_packet_idx);
-    
-    out_packet_ready = true;    
+
+    out_packet_ready = true;
     uWAVE_response_received = false;
   }
 }
