@@ -6,5 +6,4 @@ Examples for working with uWAVE modems from Arduino boards
 * uWAVE_Example_2.ino - simple terminal to communicate from another uWAVE modem in transparent channel mode
 * uWAVE_Example_3.ino - VLBL base. Parses RMC sentence from GNSS receiver, requests remote modem, and sends own geolocation +
   remote data (depth etc.) and measured slant range to the static remote modem via RF module.
-* uMPC_Ino.ino - small and linghtweight protocol with guaranteed delivery
 
