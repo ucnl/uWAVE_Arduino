@@ -7,3 +7,4 @@ Examples for working with uWAVE modems from Arduino boards
 * uWAVE_Example_3.ino - VLBL base. Parses RMC sentence from GNSS receiver, requests remote modem, and sends own geolocation +
   remote data (depth etc.) and measured slant range to the static remote modem via RF module.
 
+* Implementation of a lightweight protocol with guaranteed delivery can be found here: [uMCPIno](https://github.com/AlekUnderwater/uMCPIno)
